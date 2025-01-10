@@ -75,18 +75,19 @@ def main():
     st.title("記帳")
     st.sidebar.title("選單")
 
+    # 判斷是否已登入，若登入則顯示主頁內容，否則顯示登入頁
     if "logged_in" not in st.session_state or not st.session_state.logged_in:
-        menu = st.sidebar.selectbox("功能", ["登入", "創建帳號"])
+        menu = st.sidebar.selectbox("功能", ["登入", "創建帳號"], key="login_menu")
     else:
-        menu = st.sidebar.selectbox("功能", ["新增記帳記錄", "查看記帳記錄", "計算總餘額", "圖表", "登出"])
+        menu = st.sidebar.selectbox("功能", ["新增記帳記錄", "查看記帳記錄", "計算總餘額", "圖表", "登出"], key="main_menu")
 
     # 登入頁面
     if menu == "登入" and ("logged_in" not in st.session_state or not st.session_state.logged_in):
         st.subheader("登入")
-        username = st.text_input("帳號")
-        password = st.text_input("密碼", type="password")
+        username = st.text_input("帳號", key="username")
+        password = st.text_input("密碼", type="password", key="password")
         
-        if st.button("登入"):
+        if st.button("登入", key="login_button"):
             if validate_user(username, password):
                 st.session_state.logged_in = True
                 st.session_state.username = username
@@ -97,16 +98,16 @@ def main():
     # 創建帳號頁面
     elif menu == "創建帳號":
         st.subheader("創建帳號")
-        new_username = st.text_input("新帳號")
-        new_password = st.text_input("新密碼", type="password")
+        new_username = st.text_input("新帳號", key="new_username")
+        new_password = st.text_input("新密碼", type="password", key="new_password")
 
-        if st.button("創建帳號"):
+        if st.button("創建帳號", key="create_account_button"):
             create_account(new_username, new_password)
             st.success("帳號創建成功！")
 
     # 如果已經登入，顯示記帳選項
     if "logged_in" in st.session_state and st.session_state.logged_in:
-        st.sidebar.selectbox("功能", ["新增記帳記錄", "查看記帳記錄", "計算總餘額", "圖表", "登出"])
+        st.sidebar.selectbox("功能", ["新增記帳記錄", "查看記帳記錄", "計算總餘額", "圖表", "登出"], key="main_sidebar")
 
         # 載入記錄
         records = load_records()
@@ -114,13 +115,13 @@ def main():
         # [新增記帳的地方]
         if menu == "新增記帳記錄":
             st.subheader("新增記帳記錄")
-            category = st.selectbox("選擇類別", ["收入", "支出"])
-            date = st.date_input("請選擇日期")
-            amount = st.text_input("輸入金額", "")
-            description = st.selectbox("分類", ["飲食", "通勤", "生活用品", "娛樂", "其他"])
-            des = st.text_input("輸入描述", "")
+            category = st.selectbox("選擇類別", ["收入", "支出"], key="category")
+            date = st.date_input("請選擇日期", key="date")
+            amount = st.text_input("輸入金額", "", key="amount")
+            description = st.selectbox("分類", ["飲食", "通勤", "生活用品", "娛樂", "其他"], key="description")
+            des = st.text_input("輸入描述", "", key="des")
 
-            if st.button("新增記錄"):
+            if st.button("新增記錄", key="add_record_button"):
                 try:
                     amount = int(amount)
                     if amount <= 0:
@@ -136,7 +137,7 @@ def main():
         elif menu == "查看記帳記錄":
             st.subheader("查看記帳記錄")
             category_money_item = ["全部", "飲食", "通勤", "生活用品", "娛樂", "其他"]
-            category_money = st.selectbox("選擇類別", category_money_item)
+            category_money = st.selectbox("選擇類別", category_money_item, key="category_money")
 
             if category_money == category_money_item[0]:
                 if records:
@@ -160,7 +161,7 @@ def main():
                 st.warning("目前沒有任何記帳記錄。")
 
         # [登出]
-        if st.button("登出"):
+        if st.button("登出", key="logout_button"):
             st.session_state.logged_in = False
             st.session_state.username = ""
             st.success("已登出！")
