@@ -2,11 +2,14 @@ import streamlit as st
 import sqlite3
 import bcrypt
 import re
+import os
 import pandas as pd
-import matplotlib.pyplot as plt
 
 # 定義合法帳號密碼的正則表達式
 VALID_USERNAME_PASSWORD_REGEX = r'^[a-zA-Z0-9_.]+$'
+
+# 設定記帳紀錄檔案
+FILENAME = "accounting_records.csv"
 
 # 建立資料庫連接並初始化
 def init_db():
@@ -101,6 +104,7 @@ def main():
         if st.button("登入"):
             if login(username, password, conn):
                 st.session_state.logged_in = True
+                st.success("登入成功！")
             else:
                 st.session_state.logged_in = False
 
@@ -162,11 +166,4 @@ def main():
         elif menu == "計算總餘額":
             st.subheader("計算總餘額")
             balance = calculate_balance(records)
-            st.write(f"目前總餘額為： **{balance:.2f}**")
-
-    else:
-        st.info("請先登入帳號以進行操作。")
-
-# 啟動應用
-if __name__ == "__main__":
-    main()
+            st.write(f"目前總餘額為： **{balance
