@@ -2,29 +2,71 @@ import streamlit as st
 import csv
 import os
 import pandas as pd
-import matplotlib.pyplot as plt
-import datetime as dt
+from hashlib import sha256
 
-ACCOUNT_FILE = "users.csv"
-RECORDS_FILE = "accounting_records.csv"
-AUTO_TRANSACTIONS_FILE = "auto_transactions.csv"
+USER_FILE = "users.csv"
 
-# 初始化
-def load_records(filename):
-    if os.path.exists(filename):
-        with open(filename, mode="r", newline="") as file:
-            reader = csv.reader(file)
-            return list(reader)
-    return []
+# 密碼加密
+def hash_password(password):
+    return sha256(password.encode()).hexdigest()
 
-def save_records(filename, records):
+# 初始化用戶檔案
+def init_user_file():
+    if not os.path.exists(USER_FILE):
+        with open(USER_FILE, mode="w", newline="") as file:
+            writer = csv.writer(file)
+            writer.writerow(["username", "password"])  # 欄位名稱
+
+# 檢查用戶是否存在
+def user_exists(username):
+    with open(USER_FILE, mode="r") as file:
+        reader = csv.DictReader(file)
+        return any(row["username"] == username for row in reader)
+
+# 新增用戶
+def add_user(username, password):
+    with open(USER_FILE, mode="a", newline="") as file:
+        writer = csv.writer(file)
+        writer.writerow([username, hash_password(password)])
+
+# 驗證帳號與密碼
+def verify_user(username, password):
+    with open(USER_FILE, mode="r") as file:
+        reader = csv.DictReader(file)
+        for row in reader:
+            if row["username"] == username and row["password"] == hash_password(password):
+                return True
+    return False
+
+# 初始化記帳檔案
+@st.cache_data
+def init_record_file(username):
+    filename = f"accounting_records_{username}.csv"
+    if not os.path.exists(filename):
+        with open(filename, mode="w", newline="") as file:
+            writer = csv.writer(file)
+            writer.writerow(["類別", "日期", "金額", "分類", "描述"])
+    return filename
+
+# 加載記帳記錄
+@st.cache_data
+def load_records(username):
+    filename = init_record_file(username)
+    with open(filename, mode="r", newline="") as file:
+        reader = csv.reader(file)
+        return list(reader)
+
+# 儲存記帳記錄
+def save_records(username, records):
+    filename = init_record_file(username)
     with open(filename, mode="w", newline="") as file:
         writer = csv.writer(file)
         writer.writerows(records)
 
+# 計算總餘額
 def calculate_balance(records):
     balance = 0
-    for record in records:
+    for record in records[1:]:  # 跳過標題行
         amount = float(record[2])
         if record[0] == "收入":
             balance += amount
@@ -32,72 +74,14 @@ def calculate_balance(records):
             balance -= amount
     return balance
 
-# 更新自動交易
-def update_auto_transactions(records, auto_transactions):
-    today = dt.date.today()
-    for transaction in auto_transactions:
-        category, frequency, amount, description, last_updated = transaction
-        amount = float(amount)
-        last_updated = dt.datetime.strptime(last_updated, "%Y-%m-%d").date()
-
-        if frequency == "每週" and (today - last_updated).days >= 7:
-            while (today - last_updated).days >= 7:
-                last_updated += dt.timedelta(days=7)
-                records.append(["支出" if amount < 0 else "收入", last_updated, abs(amount), description, "自動扣款"])
-        elif frequency == "每月" and (today.year > last_updated.year or today.month > last_updated.month):
-            while today.year > last_updated.year or today.month > last_updated.month:
-                next_month = last_updated.month % 12 + 1
-                next_year = last_updated.year + (last_updated.month // 12)
-                last_updated = dt.date(next_year, next_month, last_updated.day)
-                records.append(["支出" if amount < 0 else "收入", last_updated, abs(amount), description, "自動扣款"])
-        transaction[4] = last_updated.strftime("%Y-%m-%d")
-
-    save_records(RECORDS_FILE, records)
-    save_records(AUTO_TRANSACTIONS_FILE, auto_transactions)
-
-# 繪製圓餅圖
-def plot_pie_chart(data, labels, title):
-    plt.figure(figsize=(6, 6))
-    plt.pie(data, labels=labels, autopct='%1.1f%%', startangle=140)
-    plt.title(title)
-    st.pyplot(plt)
-
-# 登入功能
-def authenticate(username, password):
-    users = load_records(ACCOUNT_FILE)
-    for user in users:
-        if user[0] == username and user[1] == password:
-            return True
-    return False
-
-def main():
-    st.title("記帳應用程式")
-
-    # 初始化 Session State
-    if "authenticated" not in st.session_state:
-        st.session_state["authenticated"] = False
-
-    # 登入頁面
-    if not st.session_state["authenticated"]:
-        st.subheader("登入")
-        username = st.text_input("使用者名稱")
-        password = st.text_input("密碼", type="password")
-        if st.button("登入"):
-            if authenticate(username, password):
-                st.session_state["authenticated"] = True
-                st.success("登入成功！")
-            else:
-                st.error("登入失敗，請檢查帳號密碼。")
-        return
-
-    # 主選單
+# 主選單
+def main(username):
+    st.title(f"記帳系統（使用者：{username}）")
     st.sidebar.title("選單")
-    menu = st.sidebar.selectbox("功能", ["新增記帳記錄", "查看記帳記錄", "計算總餘額", "設定自動扣款/收入", "登出"])
+    menu = st.sidebar.selectbox("功能", ["新增記帳記錄", "查看記帳記錄", "計算總餘額"])
 
-    # 載入資料
-    records = load_records(RECORDS_FILE)
-    auto_transactions = load_records(AUTO_TRANSACTIONS_FILE)
-    update_auto_transactions(records, auto_transactions)
+    # 載入記錄
+    records = load_records(username)
 
     # 新增記帳記錄
     if menu == "新增記帳記錄":
@@ -110,12 +94,12 @@ def main():
 
         if st.button("新增記錄"):
             try:
-                amount = int(amount)
+                amount = float(amount)
                 if amount <= 0:
                     st.error("金額必須是正數！")
                 else:
-                    records.append([category, date, amount, description, des])
-                    save_records(RECORDS_FILE, records)
+                    records.append([category, str(date), str(amount), description, des])
+                    save_records(username, records)
                     st.success("記錄已成功新增！")
             except ValueError:
                 st.error("金額必須是有效的數字！")
@@ -123,27 +107,21 @@ def main():
     # 查看記帳記錄
     elif menu == "查看記帳記錄":
         st.subheader("查看記帳記錄")
-        category_money_item = ["全部", "飲食", "通勤", "生活用品", "娛樂", "其他"]
-        category_money = st.selectbox("選擇類別", category_money_item)
+        category_money = st.selectbox("選擇分類", ["全部", "飲食", "通勤", "生活用品", "娛樂", "其他"])
+        filtered_records = records[1:] if category_money == "全部" else [
+            r for r in records[1:] if r[3] == category_money
+        ]
 
-        if category_money == "全部":
-            if records:
-                df = pd.DataFrame(records, columns=["類別", "日期", "金額", "分類", "描述"])
-                st.table(df)
-            else:
-                st.warning("目前沒有任何記帳記錄。")
+        if filtered_records:
+            df = pd.DataFrame(filtered_records, columns=records[0])
+            st.table(df)
+
+            # 圓餅圖
+            if st.checkbox("顯示圖表"):
+                chart_data = df.groupby("分類")["金額"].sum()
+                st.pyplot(chart_data.plot.pie(autopct='%1.1f%%', ylabel=''))
         else:
-            filtered_records = [r for r in records if r[3] == category_money]
-            if filtered_records:
-                df = pd.DataFrame(filtered_records, columns=["類別", "日期", "金額", "分類", "描述"])
-                st.table(df)
-
-                # 繪製分類圓餅圖
-                amounts = [float(r[2]) for r in filtered_records]
-                dates = [r[1] for r in filtered_records]
-                plot_pie_chart(amounts, dates, f"{category_money}的花費分布")
-            else:
-                st.warning("目前沒有任何記帳記錄。")
+            st.warning("目前沒有任何記帳記錄。")
 
     # 計算總餘額
     elif menu == "計算總餘額":
@@ -151,32 +129,32 @@ def main():
         balance = calculate_balance(records)
         st.write(f"目前總餘額為： **{balance:.2f}**")
 
-    # 設定自動扣款/收入
-    elif menu == "設定自動扣款/收入":
-        st.subheader("設定自動扣款/收入")
-        category = st.selectbox("選擇類別", ["支出", "收入"])
-        frequency = st.selectbox("選擇頻率", ["每週", "每月"])
-        amount = st.text_input("輸入金額", "")
-        description = st.text_input("輸入描述", "")
+# 登入頁面
+def login_page():
+    st.title("記帳系統")
+    st.sidebar.subheader("登入或註冊")
+    choice = st.sidebar.selectbox("選擇操作", ["登入", "註冊"])
 
-        if st.button("新增自動扣款/收入"):
-            try:
-                amount = float(amount)
-                if amount <= 0:
-                    st.error("金額必須是正數！")
-                else:
-                    today = dt.date.today().strftime("%Y-%m-%d")
-                    auto_transactions.append([category, frequency, amount, description, today])
-                    save_records(AUTO_TRANSACTIONS_FILE, auto_transactions)
-                    st.success("已成功新增自動扣款/收入！")
-            except ValueError:
-                st.error("金額必須是有效的數字！")
+    if choice == "登入":
+        username = st.text_input("輸入帳號")
+        password = st.text_input("輸入密碼", type="password")
+        if st.button("登入"):
+            if verify_user(username, password):
+                st.success("登入成功！")
+                main(username)
+            else:
+                st.error("帳號或密碼錯誤！")
 
-    # 登出
-    elif menu == "登出":
-        st.session_state["authenticated"] = False
-        st.success("已成功登出！")
+    elif choice == "註冊":
+        username = st.text_input("輸入帳號")
+        password = st.text_input("輸入密碼", type="password")
+        if st.button("註冊"):
+            if user_exists(username):
+                st.error("帳號已存在！")
+            else:
+                add_user(username, password)
+                st.success("註冊成功！請返回登入頁面。")
 
-# 啟動應用
 if __name__ == "__main__":
-    main()
+    init_user_file()
+    login_page()
