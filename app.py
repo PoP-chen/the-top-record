@@ -1,94 +1,13 @@
-import streamlit as st
-import csv
-import os
-import pandas as pd
-import matplotlib.pyplot as plt
-from collections import Counter
-
-FILENAME = "accounting_records.csv"
-USER_FILE = "users.csv"  # 用於存儲帳號密碼的檔案
-
-# 初始化
-def load_records():
-    if os.path.exists(FILENAME):
-        with open(FILENAME, mode="r", newline="") as file:
-            reader = csv.reader(file)
-            return list(reader)
-    return []
-
-def save_records(records):
-    with open(FILENAME, mode="w", newline="") as file:
-        writer = csv.writer(file)
-        writer.writerows(records)
-
-def load_users():
-    if os.path.exists(USER_FILE):
-        with open(USER_FILE, mode="r", newline="") as file:
-            reader = csv.reader(file)
-            return list(reader)
-    return []
-
-def save_users(users):
-    with open(USER_FILE, mode="w", newline="") as file:
-        writer = csv.writer(file)
-        writer.writerows(users)
-
-def create_account(username, password):
-    users = load_users()
-    users.append([username, password])
-    save_users(users)
-
-def validate_user(username, password):
-    users = load_users()
-    for user in users:
-        if user[0] == username and user[1] == password:
-            return True
-    return False
-
-# 計算總餘額
-def calculate_balance(records):
-    balance = 0
-    for record in records:
-        amount = float(record[2])
-        if record[0] == "收入":
-            balance += amount
-        elif record[0] == "支出":
-            balance -= amount
-    return balance
-
-# 畫圓餅圖
-def plot_pie_chart(records):
-    categories = [record[3] for record in records]
-    category_counts = Counter(categories)
-
-    labels = category_counts.keys()
-    sizes = category_counts.values()
-
-    fig, ax = plt.subplots()
-    ax.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=90)
-    ax.axis('equal')  # Equal aspect ratio ensures that pie chart is circular.
-    
-    st.pyplot(fig)
-
-# 主頁面
 def main():
     st.title("記帳")
     st.sidebar.title("選單")
-
-    if "logged_in" not in st.session_state:
-        st.session_state.logged_in = False
-
-    # 判斷是否已登入，若登入則顯示主頁內容，否則顯示登入頁
-    if not st.session_state.logged_in:
-        menu = st.sidebar.selectbox("功能", ["登入", "創建帳號"], key="login_menu")
-    else:
-        menu = st.sidebar.selectbox("功能", ["新增記帳記錄", "查看記帳記錄", "計算總餘額", "圖表", "登出"], key="main_menu")
+    menu = st.sidebar.selectbox("功能", ["登入", "創建帳號"], key="menu_selectbox")
 
     # 登入頁面
-    if menu == "登入" and not st.session_state.logged_in:
+    if menu == "登入":
         st.subheader("登入")
-        username = st.text_input("帳號", key="username")
-        password = st.text_input("密碼", type="password", key="password")
+        username = st.text_input("帳號", key="login_username")
+        password = st.text_input("密碼", type="password", key="login_password")
         
         if st.button("登入", key="login_button"):
             if validate_user(username, password):
@@ -109,18 +28,20 @@ def main():
             st.success("帳號創建成功！")
 
     # 如果已經登入，顯示記帳選項
-    if st.session_state.logged_in:
-        # 登入後的主頁內容
+    if "logged_in" in st.session_state and st.session_state.logged_in:
+        st.sidebar.selectbox("功能", ["新增記帳記錄", "查看記帳記錄", "計算總餘額", "圖表", "登出"], key="logged_in_menu")
+
+        # 載入記錄
         records = load_records()
 
         # [新增記帳的地方]
         if menu == "新增記帳記錄":
             st.subheader("新增記帳記錄")
-            category = st.selectbox("選擇類別", ["收入", "支出"], key="category_input")
+            category = st.selectbox("選擇類別", ["收入", "支出"], key="category_selectbox")
             date = st.date_input("請選擇日期", key="date_input")
-            amount = st.text_input("輸入金額", "", key="amount_input")
-            description = st.selectbox("分類", ["飲食", "通勤", "生活用品", "娛樂", "其他"], key="description_input")
-            des = st.text_input("輸入描述", "", key="des_input")
+            amount = st.text_input("輸入金額", key="amount_input")
+            description = st.selectbox("分類", ["飲食", "通勤", "生活用品", "娛樂", "其他"], key="description_selectbox")
+            des = st.text_input("輸入描述", key="description_input")
 
             if st.button("新增記錄", key="add_record_button"):
                 try:
@@ -138,7 +59,7 @@ def main():
         elif menu == "查看記帳記錄":
             st.subheader("查看記帳記錄")
             category_money_item = ["全部", "飲食", "通勤", "生活用品", "娛樂", "其他"]
-            category_money = st.selectbox("選擇類別", category_money_item, key="category_money_input")
+            category_money = st.selectbox("選擇類別", category_money_item, key="category_money_selectbox")
 
             if category_money == category_money_item[0]:
                 if records:
