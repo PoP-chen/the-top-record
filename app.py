@@ -86,6 +86,14 @@ def calculate_balance(records):
             balance -= amount
     return balance
 
+# 初始化 Session State
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+if "username" not in st.session_state:
+    st.session_state.username = ""
+if "input_cache" not in st.session_state:
+    st.session_state.input_cache = {"username": "", "password": ""}
+
 # 主頁面
 def main():
     st.title("記帳系統")
@@ -93,10 +101,6 @@ def main():
     menu = st.sidebar.selectbox("功能", ["登入", "創建帳號", "新增記帳記錄", "查看記帳記錄", "計算總餘額"])
 
     conn = init_db()
-
-    # 清除輸入內容的機制
-    if "input_cache" not in st.session_state:
-        st.session_state.input_cache = {"username": "", "password": ""}
 
     # 登入頁面
     if menu == "登入":
