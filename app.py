@@ -4,9 +4,7 @@ import os
 import pandas as pd
 import matplotlib.pyplot as plt
 from collections import Counter
-import hashlib
 
-# 檔案名稱
 FILENAME = "accounting_records.csv"
 USER_FILE = "users.csv"  # 用於存儲帳號密碼的檔案
 
@@ -35,19 +33,15 @@ def save_users(users):
         writer = csv.writer(file)
         writer.writerows(users)
 
-# 創建新帳號
 def create_account(username, password):
     users = load_users()
-    hashed_password = hashlib.sha256(password.encode()).hexdigest()
-    users.append([username, hashed_password])
+    users.append([username, password])
     save_users(users)
 
-# 驗證用戶登入
 def validate_user(username, password):
     users = load_users()
-    hashed_password = hashlib.sha256(password.encode()).hexdigest()
     for user in users:
-        if user[0] == username and user[1] == hashed_password:
+        if user[0] == username and user[1] == password:
             return True
     return False
 
@@ -80,10 +74,14 @@ def plot_pie_chart(records):
 def main():
     st.title("記帳")
     st.sidebar.title("選單")
-    menu = st.sidebar.selectbox("功能", ["登入", "創建帳號", "主頁"])
+
+    if "logged_in" not in st.session_state or not st.session_state.logged_in:
+        menu = st.sidebar.selectbox("功能", ["登入", "創建帳號"])
+    else:
+        menu = st.sidebar.selectbox("功能", ["新增記帳記錄", "查看記帳記錄", "計算總餘額", "圖表", "登出"])
 
     # 登入頁面
-    if menu == "登入":
+    if menu == "登入" and ("logged_in" not in st.session_state or not st.session_state.logged_in):
         st.subheader("登入")
         username = st.text_input("帳號")
         password = st.text_input("密碼", type="password")
@@ -93,7 +91,6 @@ def main():
                 st.session_state.logged_in = True
                 st.session_state.username = username
                 st.success("登入成功！")
-                st.experimental_rerun()  # 重新載入頁面，跳轉至主頁面
             else:
                 st.error("帳號或密碼錯誤！")
 
@@ -106,9 +103,8 @@ def main():
         if st.button("創建帳號"):
             create_account(new_username, new_password)
             st.success("帳號創建成功！")
-            st.experimental_rerun()  # 重新載入頁面，跳轉至登入頁面
 
-    # 主頁面
+    # 如果已經登入，顯示記帳選項
     if "logged_in" in st.session_state and st.session_state.logged_in:
         st.sidebar.selectbox("功能", ["新增記帳記錄", "查看記帳記錄", "計算總餘額", "圖表", "登出"])
 
@@ -168,7 +164,6 @@ def main():
             st.session_state.logged_in = False
             st.session_state.username = ""
             st.success("已登出！")
-            st.experimental_rerun()  # 重新載入頁面，跳轉至登入頁面
 
 # 啟動應用
 if __name__ == "__main__":
