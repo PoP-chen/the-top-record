@@ -1,4 +1,5 @@
 streamlit
+sqlite3
 pandas
 matplotlib
 bcrypt
