@@ -75,14 +75,17 @@ def main():
     st.title("記帳")
     st.sidebar.title("選單")
 
+    if "logged_in" not in st.session_state:
+        st.session_state.logged_in = False
+
     # 判斷是否已登入，若登入則顯示主頁內容，否則顯示登入頁
-    if "logged_in" not in st.session_state or not st.session_state.logged_in:
+    if not st.session_state.logged_in:
         menu = st.sidebar.selectbox("功能", ["登入", "創建帳號"], key="login_menu")
     else:
         menu = st.sidebar.selectbox("功能", ["新增記帳記錄", "查看記帳記錄", "計算總餘額", "圖表", "登出"], key="main_menu")
 
     # 登入頁面
-    if menu == "登入" and ("logged_in" not in st.session_state or not st.session_state.logged_in):
+    if menu == "登入" and not st.session_state.logged_in:
         st.subheader("登入")
         username = st.text_input("帳號", key="username")
         password = st.text_input("密碼", type="password", key="password")
@@ -106,20 +109,18 @@ def main():
             st.success("帳號創建成功！")
 
     # 如果已經登入，顯示記帳選項
-    if "logged_in" in st.session_state and st.session_state.logged_in:
-        st.sidebar.selectbox("功能", ["新增記帳記錄", "查看記帳記錄", "計算總餘額", "圖表", "登出"], key="main_sidebar")
-
-        # 載入記錄
+    if st.session_state.logged_in:
+        # 登入後的主頁內容
         records = load_records()
 
         # [新增記帳的地方]
         if menu == "新增記帳記錄":
             st.subheader("新增記帳記錄")
-            category = st.selectbox("選擇類別", ["收入", "支出"], key="category")
-            date = st.date_input("請選擇日期", key="date")
-            amount = st.text_input("輸入金額", "", key="amount")
-            description = st.selectbox("分類", ["飲食", "通勤", "生活用品", "娛樂", "其他"], key="description")
-            des = st.text_input("輸入描述", "", key="des")
+            category = st.selectbox("選擇類別", ["收入", "支出"], key="category_input")
+            date = st.date_input("請選擇日期", key="date_input")
+            amount = st.text_input("輸入金額", "", key="amount_input")
+            description = st.selectbox("分類", ["飲食", "通勤", "生活用品", "娛樂", "其他"], key="description_input")
+            des = st.text_input("輸入描述", "", key="des_input")
 
             if st.button("新增記錄", key="add_record_button"):
                 try:
@@ -137,7 +138,7 @@ def main():
         elif menu == "查看記帳記錄":
             st.subheader("查看記帳記錄")
             category_money_item = ["全部", "飲食", "通勤", "生活用品", "娛樂", "其他"]
-            category_money = st.selectbox("選擇類別", category_money_item, key="category_money")
+            category_money = st.selectbox("選擇類別", category_money_item, key="category_money_input")
 
             if category_money == category_money_item[0]:
                 if records:
