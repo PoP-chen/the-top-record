@@ -1,99 +1,166 @@
 import streamlit as st
-import sqlite3
-import bcrypt
-import re
-from datetime import date
+import csv
+import os
+import pandas as pd
+import matplotlib.pyplot as plt
+from collections import Counter
 
-# 初始化資料庫
-def init_db():
-    conn = sqlite3.connect("records.db")
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS users (
-                    username TEXT PRIMARY KEY, 
-                    password TEXT)''')
-    c.execute('''CREATE TABLE IF NOT EXISTS records (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    username TEXT,
-                    category TEXT,
-                    record_date TEXT,
-                    amount REAL,
-                    description TEXT,
-                    details TEXT,
-                    FOREIGN KEY (username) REFERENCES users(username))''')
-    conn.commit()
-    return conn
+FILENAME = "accounting_records.csv"
+USER_FILE = "users.csv"  # 用於存儲帳號密碼的檔案
 
-# 重置資料庫（刪除所有舊數據）
-def reset_db():
-    conn = sqlite3.connect("records.db")
-    c = conn.cursor()
-    c.execute("DROP TABLE IF EXISTS users")
-    c.execute("DROP TABLE IF EXISTS records")
-    conn.commit()
-    conn.close()
-    st.warning("資料庫已重置，所有舊數據已清除！")
+# 初始化
+def load_records():
+    if os.path.exists(FILENAME):
+        with open(FILENAME, mode="r", newline="") as file:
+            reader = csv.reader(file)
+            return list(reader)
+    return []
 
-# 初始化 Session State
-def init_session_state():
-    if "logged_in" not in st.session_state:
-        st.session_state.logged_in = False
-    if "username" not in st.session_state:
-        st.session_state.username = ""
-    if "input_cache" not in st.session_state:
-        st.session_state.input_cache = {"username": "", "password": ""}
+def save_records(records):
+    with open(FILENAME, mode="w", newline="") as file:
+        writer = csv.writer(file)
+        writer.writerows(records)
 
-# 驗證帳號密碼格式
-def is_valid_username_password(username, password):
-    pattern = r"^[a-zA-Z0-9_.]+$"
-    return bool(re.match(pattern, username) and re.match(pattern, password))
+def load_users():
+    if os.path.exists(USER_FILE):
+        with open(USER_FILE, mode="r", newline="") as file:
+            reader = csv.reader(file)
+            return list(reader)
+    return []
 
-# 檢查使用者是否存在
-def user_exists(username, conn):
-    c = conn.cursor()
-    c.execute("SELECT * FROM users WHERE username = ?", (username,))
-    return c.fetchone() is not None
+def save_users(users):
+    with open(USER_FILE, mode="w", newline="") as file:
+        writer = csv.writer(file)
+        writer.writerows(users)
 
-# 登入頁面
-def login_page(conn):
-    st.title("登入")
-    init_session_state()
+def create_account(username, password):
+    users = load_users()
+    users.append([username, password])
+    save_users(users)
 
-    # 輸入帳號密碼
-    username = st.text_input("帳號", value=st.session_state.input_cache["username"])
-    password = st.text_input("密碼", value=st.session_state.input_cache["password"], type="password")
+def validate_user(username, password):
+    users = load_users()
+    for user in users:
+        if user[0] == username and user[1] == password:
+            return True
+    return False
 
-    if st.button("登入"):
-        if is_valid_username_password(username, password):
-            if user_exists(username, conn):
-                c = conn.cursor()
-                c.execute("SELECT password FROM users WHERE username = ?", (username,))
-                stored_password = c.fetchone()[0]
-                if bcrypt.checkpw(password.encode("utf-8"), stored_password.encode("utf-8")):
-                    st.session_state.logged_in = True
-                    st.session_state.username = username
-                    st.session_state.input_cache = {"username": "", "password": ""}
-                    st.success(f"歡迎 {username}！")
-                else:
-                    st.error("密碼錯誤！")
-            else:
-                st.error("帳號不存在！")
-        else:
-            st.error("帳號或密碼包含非法字符！")
+# 計算總餘額
+def calculate_balance(records):
+    balance = 0
+    for record in records:
+        amount = float(record[2])
+        if record[0] == "收入":
+            balance += amount
+        elif record[0] == "支出":
+            balance -= amount
+    return balance
 
-    # 若使用者未登入，顯示清除資料的選項
-    if not st.session_state.logged_in:
-        if st.button("重置資料庫"):
-            reset_db()
+# 畫圓餅圖
+def plot_pie_chart(records):
+    categories = [record[3] for record in records]
+    category_counts = Counter(categories)
+
+    labels = category_counts.keys()
+    sizes = category_counts.values()
+
+    fig, ax = plt.subplots()
+    ax.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=90)
+    ax.axis('equal')  # Equal aspect ratio ensures that pie chart is circular.
+    
+    st.pyplot(fig)
 
 # 主頁面
 def main():
-    conn = init_db()
-    if st.session_state.logged_in:
-        st.title("歡迎進入系統")
-        st.write(f"您已經登入為: {st.session_state.username}")
-        # 其他功能可以放在這裡
-    else:
-        login_page(conn)
+    st.title("記帳")
+    st.sidebar.title("選單")
+    menu = st.sidebar.selectbox("功能", ["登入", "創建帳號"])
 
+    # 登入頁面
+    if menu == "登入":
+        st.subheader("登入")
+        username = st.text_input("帳號")
+        password = st.text_input("密碼", type="password")
+        
+        if st.button("登入"):
+            if validate_user(username, password):
+                st.session_state.logged_in = True
+                st.session_state.username = username
+                st.success("登入成功！")
+            else:
+                st.error("帳號或密碼錯誤！")
+
+    # 創建帳號頁面
+    elif menu == "創建帳號":
+        st.subheader("創建帳號")
+        new_username = st.text_input("新帳號")
+        new_password = st.text_input("新密碼", type="password")
+
+        if st.button("創建帳號"):
+            create_account(new_username, new_password)
+            st.success("帳號創建成功！")
+
+    # 如果已經登入，顯示記帳選項
+    if "logged_in" in st.session_state and st.session_state.logged_in:
+        st.sidebar.selectbox("功能", ["新增記帳記錄", "查看記帳記錄", "計算總餘額", "圖表", "登出"])
+
+        # 載入記錄
+        records = load_records()
+
+        # [新增記帳的地方]
+        if menu == "新增記帳記錄":
+            st.subheader("新增記帳記錄")
+            category = st.selectbox("選擇類別", ["收入", "支出"])
+            date = st.date_input("請選擇日期")
+            amount = st.text_input("輸入金額", "")
+            description = st.selectbox("分類", ["飲食", "通勤", "生活用品", "娛樂", "其他"])
+            des = st.text_input("輸入描述", "")
+
+            if st.button("新增記錄"):
+                try:
+                    amount = int(amount)
+                    if amount <= 0:
+                        st.error("金額必須是正數！")
+                    else:
+                        records.append([category, date, amount, description, des])
+                        save_records(records)
+                        st.success("記錄已成功新增！")
+                except ValueError:
+                    st.error("金額必須是有效的數字！")
+
+        # [查看紀錄的地方]
+        elif menu == "查看記帳記錄":
+            st.subheader("查看記帳記錄")
+            category_money_item = ["全部", "飲食", "通勤", "生活用品", "娛樂", "其他"]
+            category_money = st.selectbox("選擇類別", category_money_item)
+
+            if category_money == category_money_item[0]:
+                if records:
+                    df = pd.DataFrame(records, columns=["類別", "日期", "金額", "分類", "描述"])
+                    st.table(df)
+                else:
+                    st.warning("目前沒有任何記帳記錄。")
+
+        # [餘額的地方]
+        elif menu == "計算總餘額":
+            st.subheader("計算總餘額")
+            balance = calculate_balance(records)
+            st.write(f"目前總餘額為： **{balance:.2f}**")
+
+        # [圖表的地方]
+        elif menu == "圖表":
+            st.subheader("記帳類別圓餅圖")
+            if records:
+                plot_pie_chart(records)
+            else:
+                st.warning("目前沒有任何記帳記錄。")
+
+        # [登出]
+        if st.button("登出"):
+            st.session_state.logged_in = False
+            st.session_state.username = ""
+            st.success("已登出！")
+
+# 啟動應用
 if __name__ == "__main__":
     main()
