@@ -55,23 +55,28 @@ def auto_adjust(records, period, adjustment, description):
     if period == "每週":
         next_date = today + timedelta(weeks=1)
     elif period == "每月":
-        next_date = today + timedelta(days=30)  # 大致模擬一個月
+        next_date = today + timedelta(days=30)
     else:
         return records
 
-    records.append(["收入" if adjustment > 0 else "支出", next_date, abs(adjustment), "自動調整", description])
+    records.append(["收入" if adjustment > 0 else "支出", next_date, abs(adjustment), description])
     save_records(records)
     return records
 
-# 主頁
-def main():
-    st.title("記帳系統")
-    
-    # 初始化 session_state
+# 初始化 session_state
+def initialize_session_state():
     if "logged_in" not in st.session_state:
         st.session_state.logged_in = False
+    if "username" not in st.session_state:
         st.session_state.username = ""
+    if "page" not in st.session_state:
         st.session_state.page = "login"
+
+# 主頁
+def main():
+    initialize_session_state()
+
+    st.title("記帳系統")
 
     # 判斷當前頁面
     if st.session_state.page == "login":
@@ -137,10 +142,6 @@ def dashboard_page():
             st.table(df)
         else:
             st.warning("目前沒有任何記帳記錄。")
-        if st.button("刪除所有資料"):
-            records.clear()
-            save_records(records)
-            st.success("所有記錄已刪除！")
 
     elif menu == "計算總餘額":
         st.subheader("計算總餘額")
@@ -170,10 +171,6 @@ def dashboard_page():
         st.experimental_rerun()
 
 def plot_charts(records):
-    if not records or len(records) == 0:
-        st.warning("目前沒有足夠數據生成圖表。")
-        return
-
     try:
         df = pd.DataFrame(records, columns=["類別", "日期", "金額", "描述"])
         df["金額"] = df["金額"].astype(float)
