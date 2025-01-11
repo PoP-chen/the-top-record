@@ -74,7 +74,7 @@ def login_page():
             st.session_state.logged_in = True
             st.session_state.username = username
             st.session_state.page = "dashboard"
-            # 不要使用 rerun，直接設定頁面為 dashboard
+            st.experimental_rerun()
         else:
             st.error("帳號或密碼錯誤！")
     
@@ -99,6 +99,7 @@ def dashboard_page():
     if menu == "新增記帳記錄":
         st.subheader("新增記帳記錄")
         category = st.selectbox("選擇類別", ["收入", "支出"])
+        subcategory = st.selectbox("選擇子類別", ["食品", "交通", "娛樂", "健康", "教育", "其他"])
         date = st.date_input("請選擇日期")
         amount = st.text_input("輸入金額", "")
         description = st.text_input("輸入描述", "")
@@ -109,7 +110,7 @@ def dashboard_page():
                 if amount <= 0:
                     st.error("金額必須是正數！")
                 else:
-                    records.append([category, date, amount, description])
+                    records.append([category, subcategory, date, amount, description])
                     save_records(records)
                     st.success("記錄已成功新增！")
             except ValueError:
@@ -138,28 +139,35 @@ def dashboard_page():
         st.session_state.logged_in = False
         st.session_state.username = ""
         st.session_state.page = "login"
+        st.experimental_rerun()
 
 def plot_charts(records):
-    df = pd.DataFrame(records, columns=["類別", "日期", "金額", "描述"])
+    df = pd.DataFrame(records, columns=["類別", "子類別", "日期", "金額", "描述"])
     df["金額"] = df["金額"].astype(float)
     df["日期"] = pd.to_datetime(df["日期"])
-
+    
     # 繪製收入與支出總和圓餅圖
     category_sums = df.groupby("類別")["金額"].sum()
     fig1, ax1 = plt.subplots()
     ax1.pie(category_sums, labels=category_sums.index, autopct='%1.1f%%', startangle=90)
     ax1.axis("equal")  # 確保圓形
-    ax1.set_title("收入與支出比例")
     st.pyplot(fig1)
+
+    # 繪製每個子類別的統計圖
+    subcategory_sums = df.groupby("子類別")["金額"].sum()
+    fig2, ax2 = plt.subplots()
+    ax2.pie(subcategory_sums, labels=subcategory_sums.index, autopct='%1.1f%%', startangle=90)
+    ax2.axis("equal")
+    st.pyplot(fig2)
 
     # 繪製時間序列圖
     daily_sums = df.groupby("日期")["金額"].sum()
-    fig2, ax2 = plt.subplots()
-    ax2.plot(daily_sums.index, daily_sums.values, marker="o")
-    ax2.set_title("每日金額趨勢")
-    ax2.set_xlabel("日期")
-    ax2.set_ylabel("金額")
-    st.pyplot(fig2)
+    fig3, ax3 = plt.subplots()
+    ax3.plot(daily_sums.index, daily_sums.values, marker="o")
+    ax3.set_title("每日記帳金額趨勢")
+    ax3.set_xlabel("日期")
+    ax3.set_ylabel("金額")
+    st.pyplot(fig3)
 
 # 啟動應用
 if __name__ == "__main__":
