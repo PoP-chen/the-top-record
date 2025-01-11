@@ -99,7 +99,6 @@ def dashboard_page():
     if menu == "新增記帳記錄":
         st.subheader("新增記帳記錄")
         category = st.selectbox("選擇類別", ["收入", "支出"])
-        subcategory = st.selectbox("選擇子類別", ["食品", "交通", "娛樂", "健康", "教育", "其他"])
         date = st.date_input("請選擇日期")
         amount = st.text_input("輸入金額", "")
         description = st.text_input("輸入描述", "")
@@ -110,7 +109,7 @@ def dashboard_page():
                 if amount <= 0:
                     st.error("金額必須是正數！")
                 else:
-                    records.append([category, subcategory, date, amount, description])
+                    records.append([category, date, amount, description])
                     save_records(records)
                     st.success("記錄已成功新增！")
             except ValueError:
@@ -142,10 +141,15 @@ def dashboard_page():
         st.experimental_rerun()
 
 def plot_charts(records):
-    df = pd.DataFrame(records, columns=["類別", "子類別", "日期", "金額", "描述"])
+    df = pd.DataFrame(records, columns=["類別", "日期", "金額", "描述"])
     df["金額"] = df["金額"].astype(float)
-    df["日期"] = pd.to_datetime(df["日期"])
     
+    # 確保日期欄位被轉換為 datetime 類型
+    df["日期"] = pd.to_datetime(df["日期"], errors='coerce')
+    
+    # 確保數據中沒有無效日期
+    df = df.dropna(subset=["日期"])
+
     # 繪製收入與支出總和圓餅圖
     category_sums = df.groupby("類別")["金額"].sum()
     fig1, ax1 = plt.subplots()
@@ -160,14 +164,17 @@ def plot_charts(records):
     ax2.axis("equal")
     st.pyplot(fig2)
 
-    # 繪製時間序列圖
+    # 繪製時間序列圖，並確保 daily_sums 不為空
     daily_sums = df.groupby("日期")["金額"].sum()
-    fig3, ax3 = plt.subplots()
-    ax3.plot(daily_sums.index, daily_sums.values, marker="o")
-    ax3.set_title("每日記帳金額趨勢")
-    ax3.set_xlabel("日期")
-    ax3.set_ylabel("金額")
-    st.pyplot(fig3)
+    if not daily_sums.empty:
+        fig3, ax3 = plt.subplots()
+        ax3.plot(daily_sums.index, daily_sums.values, marker="o")
+        ax3.set_title("每日記帳金額趨勢")
+        ax3.set_xlabel("日期")
+        ax3.set_ylabel("金額")
+        st.pyplot(fig3)
+    else:
+        st.warning("目前沒有足夠數據來繪製每日金額趨勢圖。")
 
 # 啟動應用
 if __name__ == "__main__":
