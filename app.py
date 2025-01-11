@@ -48,19 +48,15 @@ def calculate_balance(records):
             balance -= amount
     return balance
 
-# 初始化 session_state
-def initialize_session_state():
+# 主頁
+def main():
+    # 確保 session_state 已初始化
     if "logged_in" not in st.session_state:
         st.session_state.logged_in = False
     if "username" not in st.session_state:
         st.session_state.username = ""
     if "page" not in st.session_state:
         st.session_state.page = "login"
-
-# 主頁
-def main():
-    # 確保 session_state 已初始化
-    initialize_session_state()
 
     st.title("記帳系統")
 
