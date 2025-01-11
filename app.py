@@ -1,6 +1,8 @@
 import streamlit as st
 import csv
 import os
+import matplotlib.pyplot as plt
+import pandas as pd
 
 USER_FILE = "users.csv"
 RECORD_FILE = "accounting_records.csv"
@@ -91,7 +93,7 @@ def login_page():
 def dashboard_page():
     st.subheader(f"歡迎 {st.session_state.username}！")
     
-    menu = st.sidebar.selectbox("選擇功能", ["新增記帳記錄", "查看記帳記錄", "計算總餘額", "登出"])
+    menu = st.sidebar.selectbox("選擇功能", ["新增記帳記錄", "查看記帳記錄", "計算總餘額", "圖表分析", "登出"])
     records = load_records()
 
     if menu == "新增記帳記錄":
@@ -125,11 +127,39 @@ def dashboard_page():
         balance = calculate_balance(records)
         st.write(f"目前總餘額為： **{balance:.2f}**")
 
+    elif menu == "圖表分析":
+        st.subheader("圖表分析")
+        if records:
+            plot_charts(records)
+        else:
+            st.warning("目前沒有足夠數據生成圖表。")
+
     elif menu == "登出":
         st.session_state.logged_in = False
         st.session_state.username = ""
         st.session_state.page = "login"
         st.experimental_rerun()
+
+def plot_charts(records):
+    df = pd.DataFrame(records, columns=["類別", "日期", "金額", "描述"])
+    df["金額"] = df["金額"].astype(float)
+    df["日期"] = pd.to_datetime(df["日期"])
+    
+    # 繪製收入與支出總和圓餅圖
+    category_sums = df.groupby("類別")["金額"].sum()
+    fig1, ax1 = plt.subplots()
+    ax1.pie(category_sums, labels=category_sums.index, autopct='%1.1f%%', startangle=90)
+    ax1.axis("equal")  # 確保圓形
+    st.pyplot(fig1)
+
+    # 繪製時間序列圖
+    daily_sums = df.groupby("日期")["金額"].sum()
+    fig2, ax2 = plt.subplots()
+    ax2.plot(daily_sums.index, daily_sums.values, marker="o")
+    ax2.set_title("每日記帳金額趨勢")
+    ax2.set_xlabel("日期")
+    ax2.set_ylabel("金額")
+    st.pyplot(fig2)
 
 # 啟動應用
 if __name__ == "__main__":
