@@ -143,13 +143,8 @@ def dashboard_page():
 def plot_charts(records):
     df = pd.DataFrame(records, columns=["類別", "日期", "金額", "描述"])
     df["金額"] = df["金額"].astype(float)
+    df["日期"] = pd.to_datetime(df["日期"])
     
-    # 確保日期欄位被轉換為 datetime 類型
-    df["日期"] = pd.to_datetime(df["日期"], errors='coerce')
-    
-    # 確保數據中沒有無效日期
-    df = df.dropna(subset=["日期"])
-
     # 繪製收入與支出總和圓餅圖
     category_sums = df.groupby("類別")["金額"].sum()
     fig1, ax1 = plt.subplots()
@@ -157,24 +152,14 @@ def plot_charts(records):
     ax1.axis("equal")  # 確保圓形
     st.pyplot(fig1)
 
-    # 繪製每個子類別的統計圖
-    subcategory_sums = df.groupby("子類別")["金額"].sum()
-    fig2, ax2 = plt.subplots()
-    ax2.pie(subcategory_sums, labels=subcategory_sums.index, autopct='%1.1f%%', startangle=90)
-    ax2.axis("equal")
-    st.pyplot(fig2)
-
-    # 繪製時間序列圖，並確保 daily_sums 不為空
+    # 繪製時間序列圖
     daily_sums = df.groupby("日期")["金額"].sum()
-    if not daily_sums.empty:
-        fig3, ax3 = plt.subplots()
-        ax3.plot(daily_sums.index, daily_sums.values, marker="o")
-        ax3.set_title("每日記帳金額趨勢")
-        ax3.set_xlabel("日期")
-        ax3.set_ylabel("金額")
-        st.pyplot(fig3)
-    else:
-        st.warning("目前沒有足夠數據來繪製每日金額趨勢圖。")
+    fig2, ax2 = plt.subplots()
+    ax2.plot(daily_sums.index, daily_sums.values, marker="o")
+    ax2.set_title("每日記帳金額趨勢")
+    ax2.set_xlabel("日期")
+    ax2.set_ylabel("金額")
+    st.pyplot(fig2)
 
 # 啟動應用
 if __name__ == "__main__":
