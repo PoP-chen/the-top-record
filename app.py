@@ -1,11 +1,12 @@
-import streamlit as st
-import csv
 import os
-import matplotlib.pyplot as plt
+import csv
+import streamlit as st
 import pandas as pd
+import matplotlib.pyplot as plt
 
 USER_FILE = "users.csv"
 
+# 初始化使用者檔案
 def load_users():
     if not os.path.exists(USER_FILE):
         with open(USER_FILE, mode="w", newline="") as file:
@@ -13,30 +14,25 @@ def load_users():
     with open(USER_FILE, mode="r", newline="") as file:
         return list(csv.reader(file))
 
+# 驗證用戶登入
 def validate_user(username, password):
-    try:
-        users = load_users()
-        return any(user[0] == username and user[1] == password for user in users)
-    except Exception as e:
-        st.error(f"讀取用戶資料時發生錯誤: {str(e)}")
-        return False
+    users = load_users()
+    return any(user[0] == username and user[1] == password for user in users)
 
+# 創建帳號
 def create_account(username, password):
-    try:
-        users = load_users()
-        if any(user[0] == username for user in users):
-            st.error("此帳號已存在，請選擇其他帳號！")
-            return False
-        users.append([username, password])
-        with open(USER_FILE, mode="w", newline="") as file:
-            writer = csv.writer(file)
-            writer.writerows(users)
-        initialize_user_file(username)
-        return True
-    except Exception as e:
-        st.error(f"創建帳號時發生錯誤: {str(e)}")
+    users = load_users()
+    if any(user[0] == username for user in users):
+        st.error("此帳號已存在，請選擇其他帳號！")
         return False
+    users.append([username, password])
+    with open(USER_FILE, mode="w", newline="") as file:
+        writer = csv.writer(file)
+        writer.writerows(users)
+    initialize_user_file(username)
+    return True
 
+# 初始化用戶的記帳檔案
 def initialize_user_file(username):
     try:
         record_file = f"{username}_records.csv"
@@ -55,20 +51,19 @@ def initialize_user_file(username):
     except Exception as e:
         st.error(f"初始化檔案時發生錯誤: {str(e)}")
 
+# 讀取記帳記錄
 def load_records(username):
     try:
         record_file = f"{username}_records.csv"
         if not os.path.exists(record_file):
             initialize_user_file(username)
         with open(record_file, mode="r", newline="") as file:
-            rows = list(csv.reader(file))
-            if len(rows) <= 1:
-                return []
-            return rows[1:]
+            return list(csv.reader(file))[1:]  # 跳過標題行
     except Exception as e:
-        st.error(f"讀取記錄時發生錯誤: {str(e)}")
+        st.error(f"讀取記帳記錄時發生錯誤: {str(e)}")
         return []
 
+# 儲存記帳記錄
 def save_records(username, records):
     try:
         record_file = f"{username}_records.csv"
@@ -77,19 +72,21 @@ def save_records(username, records):
             writer.writerow(["類別", "日期", "金額", "描述"])
             writer.writerows(records)
     except Exception as e:
-        st.error(f"保存記錄時發生錯誤: {str(e)}")
+        st.error(f"儲存記帳記錄時發生錯誤: {str(e)}")
 
+# 讀取類別
 def load_categories(username):
     try:
         category_file = f"{username}_categories.csv"
         if not os.path.exists(category_file):
             initialize_user_file(username)
         with open(category_file, mode="r", newline="") as file:
-            return [row[0] for row in csv.reader(file)][1:]
+            return [row[0] for row in csv.reader(file)][1:]  # 跳過標題行
     except Exception as e:
         st.error(f"讀取類別時發生錯誤: {str(e)}")
         return []
 
+# 儲存新類別
 def save_category(username, category):
     try:
         category_file = f"{username}_categories.csv"
@@ -98,14 +95,16 @@ def save_category(username, category):
             with open(category_file, mode="a", newline="") as file:
                 writer = csv.writer(file)
                 writer.writerow([category])
+            st.success(f"類別 '{category}' 已新增！")
     except Exception as e:
         st.error(f"保存類別時發生錯誤: {str(e)}")
 
+# 計算總餘額
 def calculate_balance(records):
     balance = 0
     for record in records:
         try:
-            amount = int(record[2])
+            amount = float(record[2])
             if record[0] == "收入":
                 balance += amount
             elif record[0] == "支出":
@@ -114,6 +113,7 @@ def calculate_balance(records):
             continue
     return balance
 
+# 主頁面
 def main():
     st.title("記帳系統")
     if "logged_in" not in st.session_state:
@@ -126,6 +126,7 @@ def main():
     elif st.session_state.page == "dashboard":
         dashboard_page()
 
+# 登入頁面
 def login_page():
     st.subheader("登入頁面")
     username = st.text_input("帳號", key="login_username")
@@ -151,6 +152,7 @@ def login_page():
         else:
             st.error("請輸入有效的帳號與密碼！")
 
+# 儀表板頁面
 def dashboard_page():
     st.subheader(f"歡迎 {st.session_state.username}！")
     menu = st.sidebar.selectbox("選擇功能", ["新增記帳記錄", "查看記帳記錄", "計算總餘額", "圖表分析", "登出"])
@@ -168,17 +170,18 @@ def dashboard_page():
                 st.experimental_rerun()
 
         date = st.date_input("請選擇日期")
-        amount = st.text_input("輸入金額 (正整數)", "")
+        amount = st.text_input("輸入金額", "")
         description = st.text_input("輸入描述", "")
 
         if st.button("新增記錄"):
             try:
-                if amount.isdigit() and int(amount) > 0:
-                    records.append([category, date, int(amount), description])
+                amount = int(amount)  # 只允許正整數
+                if amount <= 0:
+                    st.error("金額必須是正整數！")
+                else:
+                    records.append([category, date, amount, description])
                     save_records(st.session_state.username, records)
                     st.success("記錄已成功新增！")
-                else:
-                    st.error("金額必須是正整數！")
             except ValueError:
                 st.error("金額必須是有效的正整數！")
 
@@ -192,7 +195,7 @@ def dashboard_page():
     elif menu == "計算總餘額":
         st.subheader("計算總餘額")
         balance = calculate_balance(records)
-        st.write(f"目前總餘額為： **{balance:,}**")
+        st.write(f"目前總餘額為： **{balance:.2f}**")
 
     elif menu == "圖表分析":
         st.subheader("圖表分析")
@@ -207,6 +210,7 @@ def dashboard_page():
         st.session_state.page = "login"
         st.experimental_rerun()
 
+# 繪製圖表
 def plot_charts(records):
     df = pd.DataFrame(records, columns=["類別", "日期", "金額", "描述"])
     df["金額"] = pd.to_numeric(df["金額"], errors="coerce")
@@ -231,5 +235,6 @@ def plot_charts(records):
     ax2.set_ylabel("金額")
     st.pyplot(fig2)
 
+# 啟動應用
 if __name__ == "__main__":
     main()
