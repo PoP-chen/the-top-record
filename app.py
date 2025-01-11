@@ -87,7 +87,7 @@ def calculate_balance(records):
     balance = 0
     for record in records:
         try:
-            amount = float(record[2])
+            amount = int(record[2])
             if record[0] == "收入":
                 balance += amount
             elif record[0] == "支出":
@@ -150,20 +150,19 @@ def dashboard_page():
                 st.experimental_rerun()
 
         date = st.date_input("請選擇日期")
-        amount = st.text_input("輸入金額", "")
+        amount = st.text_input("輸入金額 (正整數)", "")
         description = st.text_input("輸入描述", "")
 
         if st.button("新增記錄"):
             try:
-                amount = float(amount)
-                if amount <= 0:
-                    st.error("金額必須是正數！")
-                else:
-                    records.append([category, date, amount, description])
+                if amount.isdigit() and int(amount) > 0:
+                    records.append([category, date, int(amount), description])
                     save_records(st.session_state.username, records)
                     st.success("記錄已成功新增！")
+                else:
+                    st.error("金額必須是正整數！")
             except ValueError:
-                st.error("金額必須是有效的數字！")
+                st.error("金額必須是有效的正整數！")
 
     elif menu == "查看記帳記錄":
         st.subheader("查看記帳記錄")
@@ -175,7 +174,7 @@ def dashboard_page():
     elif menu == "計算總餘額":
         st.subheader("計算總餘額")
         balance = calculate_balance(records)
-        st.write(f"目前總餘額為： **{balance:.2f}**")
+        st.write(f"目前總餘額為： **{balance:,}**")
 
     elif menu == "圖表分析":
         st.subheader("圖表分析")
