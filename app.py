@@ -49,20 +49,6 @@ def calculate_balance(records):
             balance -= amount
     return balance
 
-# 自動增減功能
-def auto_adjust(records, period, adjustment, description):
-    today = datetime.today().date()
-    if period == "每週":
-        next_date = today + timedelta(weeks=1)
-    elif period == "每月":
-        next_date = today + timedelta(days=30)
-    else:
-        return records
-
-    records.append(["收入" if adjustment > 0 else "支出", next_date, abs(adjustment), description])
-    save_records(records)
-    return records
-
 # 初始化 session_state
 def initialize_session_state():
     if "logged_in" not in st.session_state:
@@ -113,7 +99,7 @@ def login_page():
 def dashboard_page():
     st.subheader(f"歡迎 {st.session_state.username}！")
     
-    menu = st.sidebar.selectbox("選擇功能", ["新增記帳記錄", "查看記帳記錄", "計算總餘額", "圖表分析", "自動增減功能", "登出"])
+    menu = st.sidebar.selectbox("選擇功能", ["新增記帳記錄", "查看記帳記錄", "計算總餘額", "圖表分析", "登出"])
     records = load_records()
 
     if menu == "新增記帳記錄":
@@ -155,15 +141,6 @@ def dashboard_page():
         else:
             st.warning("目前沒有足夠數據生成圖表。")
 
-    elif menu == "自動增減功能":
-        st.subheader("自動增減功能")
-        period = st.selectbox("選擇週期", ["每週", "每月"])
-        adjustment = st.number_input("自動調整金額", step=1.0, format="%.2f")
-        description = st.text_input("描述")
-        if st.button("確認設定"):
-            records = auto_adjust(records, period, adjustment, description)
-            st.success(f"自動調整設定成功！")
-
     elif menu == "登出":
         st.session_state.logged_in = False
         st.session_state.username = ""
@@ -199,4 +176,5 @@ def plot_charts(records):
 
 # 啟動應用
 if __name__ == "__main__":
+    initialize_session_state()
     main()
