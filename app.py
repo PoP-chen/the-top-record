@@ -3,7 +3,6 @@ import csv
 import os
 import matplotlib.pyplot as plt
 import pandas as pd
-from datetime import datetime, timedelta
 
 USER_FILE = "users.csv"
 RECORD_FILE = "accounting_records.csv"
@@ -60,6 +59,7 @@ def initialize_session_state():
 
 # 主頁
 def main():
+    # 確保 session_state 已初始化
     initialize_session_state()
 
     st.title("記帳系統")
@@ -176,5 +176,4 @@ def plot_charts(records):
 
 # 啟動應用
 if __name__ == "__main__":
-    initialize_session_state()
     main()
