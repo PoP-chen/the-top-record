@@ -10,15 +10,24 @@ USER_FILE = "users.csv"
 def load_users():
     if not os.path.exists(USER_FILE):
         with open(USER_FILE, mode="w", newline="") as file:
-            pass  # 創建空白檔案
+            pass
     with open(USER_FILE, mode="r", newline="") as file:
-        return list(csv.reader(file))
+        try:
+            return list(csv.reader(file))
+        except csv.Error:
+            return []
 
 def validate_user(username, password):
     users = load_users()
     return any(user[0] == username and user[1] == password for user in users)
 
 def create_account(username, password):
+    if not username or not password:
+        st.error("帳號和密碼不得為空！")
+        return False
+    if "," in username or "," in password:
+        st.error("帳號和密碼不得包含特殊字元（如逗號）！")
+        return False
     users = load_users()
     if any(user[0] == username for user in users):
         st.error("此帳號已存在，請選擇其他帳號！")
@@ -35,14 +44,14 @@ def initialize_user_file(username):
     if not os.path.exists(record_file):
         with open(record_file, mode="w", newline="") as file:
             writer = csv.writer(file)
-            writer.writerow(["類別", "日期", "金額", "描述"])  # 初始化欄位
+            writer.writerow(["類別", "日期", "金額", "描述"])
 
     category_file = f"{username}_categories.csv"
     if not os.path.exists(category_file):
         with open(category_file, mode="w", newline="") as file:
             writer = csv.writer(file)
-            writer.writerow(["類別"])  # 初始化類別檔案
-            writer.writerow(["收入"])  # 預設類別
+            writer.writerow(["類別"])
+            writer.writerow(["收入"])
             writer.writerow(["支出"])
 
 def load_records(username):
@@ -50,7 +59,10 @@ def load_records(username):
     if not os.path.exists(record_file):
         initialize_user_file(username)
     with open(record_file, mode="r", newline="") as file:
-        return list(csv.reader(file))[1:]  # 跳過標題行
+        try:
+            return list(csv.reader(file))[1:]
+        except csv.Error:
+            return []
 
 def save_records(username, records):
     record_file = f"{username}_records.csv"
@@ -64,9 +76,18 @@ def load_categories(username):
     if not os.path.exists(category_file):
         initialize_user_file(username)
     with open(category_file, mode="r", newline="") as file:
-        return [row[0] for row in csv.reader(file)][1:]  # 跳過標題行
+        try:
+            return [row[0] for row in csv.reader(file)][1:]
+        except csv.Error:
+            return []
 
 def save_category(username, category):
+    if not category:
+        st.error("類別名稱不得為空！")
+        return
+    if "," in category:
+        st.error("類別名稱不得包含特殊字元（如逗號）！")
+        return
     category_file = f"{username}_categories.csv"
     categories = load_categories(username)
     if category not in categories:
@@ -74,7 +95,6 @@ def save_category(username, category):
             writer = csv.writer(file)
             writer.writerow([category])
 
-# 計算總餘額
 def calculate_balance(records):
     balance = 0
     for record in records:
@@ -88,7 +108,6 @@ def calculate_balance(records):
             continue
     return balance
 
-# 主頁
 def main():
     st.title("記帳系統")
     if "logged_in" not in st.session_state:
@@ -120,11 +139,8 @@ def login_page():
     new_username = st.text_input("新帳號", key="create_account_username")
     new_password = st.text_input("新密碼", type="password", key="create_account_password")
     if st.button("創建新帳號"):
-        if new_username and new_password:
-            if create_account(new_username, new_password):
-                st.success("帳號創建成功，請重新登入！")
-        else:
-            st.error("請輸入有效的帳號與密碼！")
+        if create_account(new_username, new_password):
+            st.success("帳號創建成功，請重新登入！")
 
 def dashboard_page():
     st.subheader(f"歡迎 {st.session_state.username}！")
@@ -137,10 +153,8 @@ def dashboard_page():
         category = st.selectbox("選擇類別", categories)
         new_category = st.text_input("新增類別", "")
         if st.button("添加新類別"):
-            if new_category:
-                save_category(st.session_state.username, new_category)
-                st.success(f"類別 '{new_category}' 已新增！")
-                st.experimental_rerun()
+            save_category(st.session_state.username, new_category)
+            st.experimental_rerun()
 
         date = st.date_input("請選擇日期")
         amount = st.text_input("輸入金額", "")
@@ -172,10 +186,7 @@ def dashboard_page():
 
     elif menu == "圖表分析":
         st.subheader("圖表分析")
-        if records:
-            plot_charts(records)
-        else:
-            st.warning("目前沒有足夠數據生成圖表。")
+        plot_charts(records)
 
     elif menu == "登出":
         st.session_state.logged_in = False
@@ -207,6 +218,5 @@ def plot_charts(records):
     ax2.set_ylabel("金額")
     st.pyplot(fig2)
 
-# 啟動應用
 if __name__ == "__main__":
     main()
