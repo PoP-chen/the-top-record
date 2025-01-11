@@ -9,79 +9,97 @@ USER_FILE = "users.csv"
 def load_users():
     if not os.path.exists(USER_FILE):
         with open(USER_FILE, mode="w", newline="") as file:
-            pass
+            pass  # 如果檔案不存在，創建空白檔案
     with open(USER_FILE, mode="r", newline="") as file:
         return list(csv.reader(file))
 
 def validate_user(username, password):
-    users = load_users()
-    return any(user[0] == username and user[1] == password for user in users)
+    try:
+        users = load_users()
+        return any(user[0] == username and user[1] == password for user in users)
+    except Exception as e:
+        st.error(f"讀取用戶資料時發生錯誤: {str(e)}")
+        return False
 
 def create_account(username, password):
-    users = load_users()
-    if any(user[0] == username for user in users):
-        st.error("此帳號已存在，請選擇其他帳號！")
+    try:
+        users = load_users()
+        if any(user[0] == username for user in users):
+            st.error("此帳號已存在，請選擇其他帳號！")
+            return False
+        users.append([username, password])
+        with open(USER_FILE, mode="w", newline="") as file:
+            writer = csv.writer(file)
+            writer.writerows(users)
+        initialize_user_file(username)
+        return True
+    except Exception as e:
+        st.error(f"創建帳號時發生錯誤: {str(e)}")
         return False
-    users.append([username, password])
-    with open(USER_FILE, mode="w", newline="") as file:
-        writer = csv.writer(file)
-        writer.writerows(users)
-    initialize_user_file(username)
-    return True
 
 def initialize_user_file(username):
-    record_file = f"{username}_records.csv"
-    if not os.path.exists(record_file):
-        with open(record_file, mode="w", newline="") as file:
-            writer = csv.writer(file)
-            writer.writerow(["類別", "日期", "金額", "描述"])
+    try:
+        record_file = f"{username}_records.csv"
+        if not os.path.exists(record_file):
+            with open(record_file, mode="w", newline="") as file:
+                writer = csv.writer(file)
+                writer.writerow(["類別", "日期", "金額", "描述"])
 
-    category_file = f"{username}_categories.csv"
-    if not os.path.exists(category_file):
-        with open(category_file, mode="w", newline="") as file:
-            writer = csv.writer(file)
-            writer.writerow(["類別"])
-            writer.writerow(["收入"])
-            writer.writerow(["支出"])
+        category_file = f"{username}_categories.csv"
+        if not os.path.exists(category_file):
+            with open(category_file, mode="w", newline="") as file:
+                writer = csv.writer(file)
+                writer.writerow(["類別"])
+                writer.writerow(["收入"])
+                writer.writerow(["支出"])
+    except Exception as e:
+        st.error(f"初始化檔案時發生錯誤: {str(e)}")
 
 def load_records(username):
-    record_file = f"{username}_records.csv"
-    if not os.path.exists(record_file):
-        initialize_user_file(username)
     try:
+        record_file = f"{username}_records.csv"
+        if not os.path.exists(record_file):
+            initialize_user_file(username)
         with open(record_file, mode="r", newline="") as file:
             rows = list(csv.reader(file))
             if len(rows) <= 1:
                 return []
             return rows[1:]
-    except (csv.Error, FileNotFoundError):
-        initialize_user_file(username)
+    except Exception as e:
+        st.error(f"讀取記錄時發生錯誤: {str(e)}")
         return []
 
 def save_records(username, records):
-    record_file = f"{username}_records.csv"
     try:
+        record_file = f"{username}_records.csv"
         with open(record_file, mode="w", newline="") as file:
             writer = csv.writer(file)
             writer.writerow(["類別", "日期", "金額", "描述"])
             writer.writerows(records)
-    except IOError:
-        st.error("無法保存記錄，請檢查檔案權限或空間。")
+    except Exception as e:
+        st.error(f"保存記錄時發生錯誤: {str(e)}")
 
 def load_categories(username):
-    category_file = f"{username}_categories.csv"
-    if not os.path.exists(category_file):
-        initialize_user_file(username)
-    with open(category_file, mode="r", newline="") as file:
-        return [row[0] for row in csv.reader(file)][1:]
+    try:
+        category_file = f"{username}_categories.csv"
+        if not os.path.exists(category_file):
+            initialize_user_file(username)
+        with open(category_file, mode="r", newline="") as file:
+            return [row[0] for row in csv.reader(file)][1:]
+    except Exception as e:
+        st.error(f"讀取類別時發生錯誤: {str(e)}")
+        return []
 
 def save_category(username, category):
-    category_file = f"{username}_categories.csv"
-    categories = load_categories(username)
-    if category not in categories:
-        with open(category_file, mode="a", newline="") as file:
-            writer = csv.writer(file)
-            writer.writerow([category])
+    try:
+        category_file = f"{username}_categories.csv"
+        categories = load_categories(username)
+        if category not in categories:
+            with open(category_file, mode="a", newline="") as file:
+                writer = csv.writer(file)
+                writer.writerow([category])
+    except Exception as e:
+        st.error(f"保存類別時發生錯誤: {str(e)}")
 
 def calculate_balance(records):
     balance = 0
