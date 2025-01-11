@@ -74,7 +74,7 @@ def login_page():
             st.session_state.logged_in = True
             st.session_state.username = username
             st.session_state.page = "dashboard"
-            st.experimental_rerun()
+            # 不要使用 rerun，直接設定頁面為 dashboard
         else:
             st.error("帳號或密碼錯誤！")
     
@@ -138,7 +138,6 @@ def dashboard_page():
         st.session_state.logged_in = False
         st.session_state.username = ""
         st.session_state.page = "login"
-        st.experimental_rerun()
 
 def plot_charts(records):
     df = pd.DataFrame(records, columns=["類別", "日期", "金額", "描述"])
