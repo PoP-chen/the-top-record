@@ -50,15 +50,13 @@ def calculate_balance(records):
 
 # 主頁
 def main():
-    # 確保 session_state 已初始化
+    st.title("記帳系統")
+    
+    # 初始化 session_state
     if "logged_in" not in st.session_state:
         st.session_state.logged_in = False
-    if "username" not in st.session_state:
         st.session_state.username = ""
-    if "page" not in st.session_state:
         st.session_state.page = "login"
-
-    st.title("記帳系統")
 
     # 判斷當前頁面
     if st.session_state.page == "login":
@@ -120,8 +118,7 @@ def dashboard_page():
     elif menu == "查看記帳記錄":
         st.subheader("查看記帳記錄")
         if records:
-            df = pd.DataFrame(records, columns=["類別", "日期", "金額", "描述"])
-            st.table(df)
+            st.table(records)
         else:
             st.warning("目前沒有任何記帳記錄。")
 
@@ -144,31 +141,26 @@ def dashboard_page():
         st.experimental_rerun()
 
 def plot_charts(records):
-    try:
-        df = pd.DataFrame(records, columns=["類別", "日期", "金額", "描述"])
-        df["金額"] = df["金額"].astype(float)
-        df["日期"] = pd.to_datetime(df["日期"], errors="coerce")
-        if df["日期"].isna().any():
-            st.error("數據中包含無效日期，請檢查記帳記錄。")
-            return
+    df = pd.DataFrame(records, columns=["類別", "日期", "金額", "描述"])
+    df["金額"] = df["金額"].astype(float)
+    df["日期"] = pd.to_datetime(df["日期"])
 
-        # 圓餅圖
-        category_sums = df.groupby("類別")["金額"].sum()
-        fig1, ax1 = plt.subplots()
-        ax1.pie(category_sums, labels=category_sums.index, autopct="%1.1f%%", startangle=90)
-        ax1.set_title("分類佔比")
-        st.pyplot(fig1)
+    # 繪製收入與支出總和圓餅圖
+    category_sums = df.groupby("類別")["金額"].sum()
+    fig1, ax1 = plt.subplots()
+    ax1.pie(category_sums, labels=category_sums.index, autopct='%1.1f%%', startangle=90)
+    ax1.axis("equal")  # 確保圓形
+    ax1.set_title("收入與支出比例")
+    st.pyplot(fig1)
 
-        # 折線圖
-        daily_sums = df.groupby("日期")["金額"].sum()
-        fig2, ax2 = plt.subplots()
-        ax2.plot(daily_sums.index, daily_sums.values, marker="o")
-        ax2.set_title("每日金額趨勢")
-        ax2.set_xlabel("日期")
-        ax2.set_ylabel("金額")
-        st.pyplot(fig2)
-    except Exception as e:
-        st.error(f"生成圖表時發生錯誤：{e}")
+    # 繪製時間序列圖
+    daily_sums = df.groupby("日期")["金額"].sum()
+    fig2, ax2 = plt.subplots()
+    ax2.plot(daily_sums.index, daily_sums.values, marker="o")
+    ax2.set_title("每日金額趨勢")
+    ax2.set_xlabel("日期")
+    ax2.set_ylabel("金額")
+    st.pyplot(fig2)
 
 # 啟動應用
 if __name__ == "__main__":
