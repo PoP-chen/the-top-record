@@ -1,22 +1,26 @@
 import streamlit as st
 import pandas as pd
+from datetime import date
 
-# 模擬的帳號資料庫（用於儲存用戶資料）
+# 初始化用戶數據
 if "user_db" not in st.session_state:
     st.session_state["user_db"] = {}  # 帳號: 密碼
+if "user_data" not in st.session_state:
+    st.session_state["user_data"] = {}  # 帳號: 交易紀錄
 if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
 if "current_user" not in st.session_state:
     st.session_state["current_user"] = None
-if "user_data" not in st.session_state:
-    st.session_state["user_data"] = {}  # 各用戶的交易記錄
+
+# 類別選項
+CATEGORIES = ["娛樂", "飲食", "住宿", "生活用品", "其他"]
 
 # 註冊功能
 def register():
     st.title("註冊帳號")
-    username = st.text_input("輸入帳號")
-    password = st.text_input("輸入密碼", type="password")
-    confirm_password = st.text_input("確認密碼", type="password")
+    username = st.text_input("輸入帳號", key="register_username")
+    password = st.text_input("輸入密碼", type="password", key="register_password")
+    confirm_password = st.text_input("確認密碼", type="password", key="register_confirm_password")
     if st.button("註冊"):
         if not username or not password:
             st.error("帳號和密碼不得為空")
@@ -26,59 +30,81 @@ def register():
             st.error("密碼不一致")
         else:
             st.session_state["user_db"][username] = password
-            st.session_state["user_data"][username] = []  # 初始化交易記錄
+            st.session_state["user_data"][username] = []
             st.success("註冊成功，請登入！")
             st.session_state["view"] = "login"
 
 # 登入功能
 def login():
     st.title("登入")
-    username = st.text_input("帳號")
-    password = st.text_input("密碼", type="password")
+    username = st.text_input("帳號", key="login_username")
+    password = st.text_input("密碼", type="password", key="login_password")
     if st.button("登入"):
         if username in st.session_state["user_db"] and st.session_state["user_db"][username] == password:
-            st.success("登入成功！")
+            st.success(f"登入成功！歡迎 {username}")
             st.session_state["logged_in"] = True
             st.session_state["current_user"] = username
         else:
             st.error("帳號或密碼錯誤")
 
-# 記帳功能
-def budget_tracker():
-    st.title(f"記帳網站 - 歡迎 {st.session_state['current_user']}")
+# 新增交易紀錄
+def add_transaction():
+    st.title("新增交易紀錄")
+    col1, col2 = st.columns(2)
+    with col1:
+        transaction_type = st.radio("類型", ["收入", "支出"])
+    with col2:
+        category = st.selectbox("類別", CATEGORIES)
 
-    # 表單：新增交易
-    with st.form("add_transaction", clear_on_submit=True):
-        description = st.text_input("描述")
-        amount = st.number_input("金額", format="%.2f")
-        submitted = st.form_submit_button("新增交易")
-        if submitted:
-            if description and amount:
-                st.session_state["user_data"][st.session_state["current_user"]].append({"描述": description, "金額": amount})
-                st.success("成功新增交易！")
+    description = st.text_input("描述")
+    amount = st.number_input("金額", min_value=0.0, step=0.01)
+    transaction_date = st.date_input("日期", value=date.today())
 
-    # 顯示交易記錄
-    st.subheader("交易記錄")
+    if st.button("新增交易"):
+        if description and amount > 0:
+            transaction = {
+                "日期": transaction_date,
+                "類型": transaction_type,
+                "類別": category,
+                "描述": description,
+                "金額": amount,
+            }
+            st.session_state["user_data"][st.session_state["current_user"]].append(transaction)
+            st.success("成功新增交易！")
+        else:
+            st.error("請完整填寫交易資訊")
+
+# 查看交易紀錄
+def view_transactions():
+    st.title("查看交易紀錄")
     transactions = st.session_state["user_data"][st.session_state["current_user"]]
     if transactions:
         df = pd.DataFrame(transactions)
-        st.table(df)
+        st.dataframe(df)
     else:
-        st.write("目前尚無交易記錄。")
+        st.write("目前尚無交易記錄")
 
-    # 總結
-    st.subheader("統計")
+# 查看總餘額
+def view_balance():
+    st.title("查看總餘額")
+    transactions = st.session_state["user_data"][st.session_state["current_user"]]
     if transactions:
-        total = sum([t["金額"] for t in transactions])
-        st.metric("總金額", f"${total:.2f}")
+        df = pd.DataFrame(transactions)
+        income = df[df["類型"] == "收入"]["金額"].sum()
+        expense = df[df["類型"] == "支出"]["金額"].sum()
+        balance = income - expense
 
-    # 登出按鈕
-    if st.button("登出"):
-        st.session_state["logged_in"] = False
-        st.session_state["current_user"] = None
-        st.info("已登出")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("總收入", f"${income:.2f}")
+        with col2:
+            st.metric("總支出", f"${expense:.2f}")
+        with col3:
+            st.metric("餘額", f"${balance:.2f}")
+    else:
+        st.write("目前尚無交易記錄")
 
-# 主流程控制
+# 主邏輯控制
 if "view" not in st.session_state:
     st.session_state["view"] = "login"
 
@@ -92,4 +118,15 @@ if not st.session_state["logged_in"]:
         if st.button("已有帳號？前往登入"):
             st.session_state["view"] = "login"
 else:
-    budget_tracker()
+    # 導覽選單
+    menu = st.sidebar.radio("功能選單", ["新增交易", "查看交易紀錄", "查看總餘額", "登出"])
+    if menu == "新增交易":
+        add_transaction()
+    elif menu == "查看交易紀錄":
+        view_transactions()
+    elif menu == "查看總餘額":
+        view_balance()
+    elif menu == "登出":
+        st.session_state["logged_in"] = False
+        st.session_state["current_user"] = None
+        st.info("已登出，請重新登入")
