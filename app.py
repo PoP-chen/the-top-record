@@ -2,11 +2,11 @@ import streamlit as st
 import pandas as pd
 from datetime import date
 
-# 初始化用戶數據
+# 初始化資料
 if "user_db" not in st.session_state:
     st.session_state["user_db"] = {}  # 帳號: 密碼
 if "user_data" not in st.session_state:
-    st.session_state["user_data"] = {}  # 帳號: 交易紀錄
+    st.session_state["user_data"] = {}  # 用戶交易記錄 {username: [transactions]}
 if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
 if "current_user" not in st.session_state:
@@ -50,12 +50,8 @@ def login():
 # 新增交易紀錄
 def add_transaction():
     st.title("新增交易紀錄")
-    col1, col2 = st.columns(2)
-    with col1:
-        transaction_type = st.radio("類型", ["收入", "支出"])
-    with col2:
-        category = st.selectbox("類別", CATEGORIES)
-
+    transaction_type = st.radio("類型", ["收入", "支出"])
+    category = st.selectbox("類別", CATEGORIES)
     description = st.text_input("描述")
     amount = st.number_input("金額", min_value=0.0, step=0.01)
     transaction_date = st.date_input("日期", value=date.today())
