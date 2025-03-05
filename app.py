@@ -1,128 +1,79 @@
-import streamlit as st
-import pandas as pd
-from datetime import date
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>單字卡練習</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin: 20px; }
+        h1 { color: #333; }
+        input, button { margin: 5px; padding: 10px; font-size: 16px; }
+        .card-container { display: flex; flex-wrap: wrap; justify-content: center; }
+        .card { width: 200px; height: 100px; margin: 10px; background: #f8f9fa; 
+                border: 1px solid #ddd; display: flex; align-items: center; 
+                justify-content: center; font-size: 20px; cursor: pointer; 
+                transition: transform 0.3s; }
+        .card:hover { transform: scale(1.05); }
+        .flipped { background: #007bff; color: white; }
+        .delete-btn { margin-top: 5px; padding: 5px 10px; font-size: 14px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>單字卡練習</h1>
+    
+    <input type="text" id="english" placeholder="輸入英文單字">
+    <input type="text" id="chinese" placeholder="輸入中文翻譯">
+    <button onclick="addCard()">新增單字卡</button>
 
-# 初始化資料
-if "user_db" not in st.session_state:
-    st.session_state["user_db"] = {}  # 帳號: 密碼
-if "user_data" not in st.session_state:
-    st.session_state["user_data"] = {}  # 用戶交易記錄 {username: [transactions]}
-if "logged_in" not in st.session_state:
-    st.session_state["logged_in"] = False
-if "current_user" not in st.session_state:
-    st.session_state["current_user"] = None
+    <div class="card-container" id="cardContainer"></div>
 
-# 類別選項
-CATEGORIES = ["娛樂", "飲食", "住宿", "生活用品", "其他"]
+    <script>
+        let words = JSON.parse(localStorage.getItem("words")) || [];
 
-# 註冊功能
-def register():
-    st.title("註冊帳號")
-    username = st.text_input("輸入帳號", key="register_username")
-    password = st.text_input("輸入密碼", type="password", key="register_password")
-    confirm_password = st.text_input("確認密碼", type="password", key="register_confirm_password")
-    if st.button("註冊"):
-        if not username or not password:
-            st.error("帳號和密碼不得為空")
-        elif username in st.session_state["user_db"]:
-            st.error("此帳號已被註冊")
-        elif password != confirm_password:
-            st.error("密碼不一致")
-        else:
-            st.session_state["user_db"][username] = password
-            st.session_state["user_data"][username] = []
-            st.success("註冊成功，請登入！")
-            st.session_state["view"] = "login"
+        function renderCards() {
+            const container = document.getElementById("cardContainer");
+            container.innerHTML = "";
+            words.forEach((word, index) => {
+                const card = document.createElement("div");
+                card.className = "card";
+                card.innerText = word.english;
+                card.onclick = () => {
+                    card.innerText = card.innerText === word.english ? word.chinese : word.english;
+                    card.classList.toggle("flipped");
+                };
 
-# 登入功能
-def login():
-    st.title("登入")
-    username = st.text_input("帳號", key="login_username")
-    password = st.text_input("密碼", type="password", key="login_password")
-    if st.button("登入"):
-        if username in st.session_state["user_db"] and st.session_state["user_db"][username] == password:
-            st.success(f"登入成功！歡迎 {username}")
-            st.session_state["logged_in"] = True
-            st.session_state["current_user"] = username
-        else:
-            st.error("帳號或密碼錯誤")
+                const deleteBtn = document.createElement("button");
+                deleteBtn.className = "delete-btn";
+                deleteBtn.innerText = "刪除";
+                deleteBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    words.splice(index, 1);
+                    localStorage.setItem("words", JSON.stringify(words));
+                    renderCards();
+                };
 
-# 新增交易紀錄
-def add_transaction():
-    st.title("新增交易紀錄")
-    transaction_type = st.radio("類型", ["收入", "支出"])
-    category = st.selectbox("類別", CATEGORIES)
-    description = st.text_input("描述")
-    amount = st.number_input("金額", min_value=0.0, step=0.01)
-    transaction_date = st.date_input("日期", value=date.today())
+                const cardWrapper = document.createElement("div");
+                cardWrapper.appendChild(card);
+                cardWrapper.appendChild(deleteBtn);
+                container.appendChild(cardWrapper);
+            });
+        }
 
-    if st.button("新增交易"):
-        if description and amount > 0:
-            transaction = {
-                "日期": transaction_date,
-                "類型": transaction_type,
-                "類別": category,
-                "描述": description,
-                "金額": amount,
+        function addCard() {
+            const english = document.getElementById("english").value.trim();
+            const chinese = document.getElementById("chinese").value.trim();
+            if (english && chinese) {
+                words.push({ english, chinese });
+                localStorage.setItem("words", JSON.stringify(words));
+                document.getElementById("english").value = "";
+                document.getElementById("chinese").value = "";
+                renderCards();
+            } else {
+                alert("請輸入完整的單字和翻譯！");
             }
-            st.session_state["user_data"][st.session_state["current_user"]].append(transaction)
-            st.success("成功新增交易！")
-        else:
-            st.error("請完整填寫交易資訊")
+        }
 
-# 查看交易紀錄
-def view_transactions():
-    st.title("查看交易紀錄")
-    transactions = st.session_state["user_data"][st.session_state["current_user"]]
-    if transactions:
-        df = pd.DataFrame(transactions)
-        st.dataframe(df)
-    else:
-        st.write("目前尚無交易記錄")
-
-# 查看總餘額
-def view_balance():
-    st.title("查看總餘額")
-    transactions = st.session_state["user_data"][st.session_state["current_user"]]
-    if transactions:
-        df = pd.DataFrame(transactions)
-        income = df[df["類型"] == "收入"]["金額"].sum()
-        expense = df[df["類型"] == "支出"]["金額"].sum()
-        balance = income - expense
-
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("總收入", f"${income:.2f}")
-        with col2:
-            st.metric("總支出", f"${expense:.2f}")
-        with col3:
-            st.metric("餘額", f"${balance:.2f}")
-    else:
-        st.write("目前尚無交易記錄")
-
-# 主邏輯控制
-if "view" not in st.session_state:
-    st.session_state["view"] = "login"
-
-if not st.session_state["logged_in"]:
-    if st.session_state["view"] == "login":
-        login()
-        if st.button("還沒有帳號？前往註冊"):
-            st.session_state["view"] = "register"
-    elif st.session_state["view"] == "register":
-        register()
-        if st.button("已有帳號？前往登入"):
-            st.session_state["view"] = "login"
-else:
-    # 導覽選單
-    menu = st.sidebar.radio("功能選單", ["新增交易", "查看交易紀錄", "查看總餘額", "登出"])
-    if menu == "新增交易":
-        add_transaction()
-    elif menu == "查看交易紀錄":
-        view_transactions()
-    elif menu == "查看總餘額":
-        view_balance()
-    elif menu == "登出":
-        st.session_state["logged_in"] = False
-        st.session_state["current_user"] = None
-        st.info("已登出，請重新登入")
+        renderCards();
+    </script>
+</body>
+</html>
